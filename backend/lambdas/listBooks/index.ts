@@ -1,16 +1,26 @@
-import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
+import type { APIGatewayProxyHandler } from "aws-lambda";
 import { ScanCommand } from "@aws-sdk/lib-dynamodb";
+import { requireAuth } from "../../shared/auth.js";
 import { ddb, RESOURCE_CONFIG } from "../../shared/aws.js";
+import { getHttpMethod, getRequestId } from "../../shared/apigw.js";
 import { error, json } from "../../shared/http.js";
 import type { BookItem } from "../../shared/types.js";
 
-export const handler: APIGatewayProxyHandlerV2 = async (event) => {
+export const handler: APIGatewayProxyHandler = async (event) => {
   console.log("listBooks request", {
-    requestId: event.requestContext.requestId,
+    requestId: getRequestId(event),
   });
 
-  if (event.requestContext.http.method === "OPTIONS") {
+  if ((getHttpMethod(event) ?? "").toUpperCase() === "OPTIONS") {
     return json(200, { ok: true });
+  }
+
+  try {
+    requireAuth(event.headers);
+  } catch (e) {
+    const statusCode = (e as any)?.statusCode;
+    if (statusCode === 401) return error(401, (e as Error).message);
+    return error(401, "Unauthorized");
   }
 
   try {

@@ -12,7 +12,15 @@ const artifactsDir = path.resolve(
   "artifacts"
 );
 
-const lambdas = ["uploadBook", "listBooks", "getBook", "deleteBook"];
+const lambdas = [
+  "uploadBook",
+  "listBooks",
+  "getBook",
+  "deleteBook",
+  "signup",
+  "login",
+  "me",
+];
 
 await rm(distDir, { recursive: true, force: true });
 await mkdir(distDir, { recursive: true });

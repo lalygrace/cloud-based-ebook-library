@@ -8,3 +8,14 @@ export type BookItem = {
   originalFileName: string;
   uploadedAt: string;
 };
+
+export type UserRole = "user" | "admin";
+
+export type UserItem = {
+  userId: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  passwordHash: string;
+  createdAt: string;
+};

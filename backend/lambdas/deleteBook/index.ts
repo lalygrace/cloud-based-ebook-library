@@ -1,29 +1,32 @@
-import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
+import type { APIGatewayProxyHandler } from "aws-lambda";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { DeleteCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { requireAuth } from "../../shared/auth.js";
+import { getHttpMethod, getRequestId } from "../../shared/apigw.js";
 import { ddb, RESOURCE_CONFIG, s3 } from "../../shared/aws.js";
 import { error, json, noContent } from "../../shared/http.js";
 import type { BookItem } from "../../shared/types.js";
 
-export const handler: APIGatewayProxyHandlerV2 = async (event) => {
+export const handler: APIGatewayProxyHandler = async (event) => {
   console.log("deleteBook request", {
-    requestId: event.requestContext.requestId,
+    requestId: getRequestId(event),
   });
 
-  if (event.requestContext.http.method === "OPTIONS") {
+  if ((getHttpMethod(event) ?? "").toUpperCase() === "OPTIONS") {
     return json(200, { ok: true });
   }
 
-  const role = (
-    event.headers?.["x-role"] ??
-    event.headers?.["X-Role"] ??
-    ""
-  ).toLowerCase();
-  if (role !== "admin")
-    return error(
-      403,
-      "Forbidden: admin role required (send header x-role: admin)"
-    );
+  let auth;
+  try {
+    auth = requireAuth(event.headers);
+  } catch (e) {
+    const statusCode = (e as any)?.statusCode;
+    if (statusCode === 401) return error(401, (e as Error).message);
+    return error(401, "Unauthorized");
+  }
+
+  if (auth.role !== "admin")
+    return error(403, "Forbidden: admin role required");
 
   const bookId = event.pathParameters?.bookId;
   if (!bookId) return error(400, "Missing bookId");

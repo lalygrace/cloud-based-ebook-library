@@ -24,7 +24,7 @@ services:
           "CMD",
           "bash",
           "-lc",
-          'curl -s http://localhost:4566/_localstack/health | grep -q ''"running": true''',
+          'curl -s http://localhost:4566/_localstack/health | grep -q ''"s3": "running"'' && curl -s http://localhost:4566/_localstack/health | grep -q ''"lambda": "running"'' && curl -s http://localhost:4566/_localstack/health | grep -q ''"apigateway": "running"''',
         ]
       interval: 5s
       timeout: 3s

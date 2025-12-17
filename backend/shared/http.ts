@@ -3,7 +3,7 @@ import type { APIGatewayProxyResult } from "aws-lambda";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, x-role",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
 export function json(

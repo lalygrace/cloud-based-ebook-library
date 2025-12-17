@@ -1,8 +1,10 @@
-import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
+import type { APIGatewayProxyHandler } from "aws-lambda";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { PutCommand } from "@aws-sdk/lib-dynamodb";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { requireAuth } from "../../shared/auth.js";
+import { getHttpMethod, getRequestId } from "../../shared/apigw.js";
 import { ddb, RESOURCE_CONFIG, s3 } from "../../shared/aws.js";
 import { error, json, parseJsonBody } from "../../shared/http.js";
 import { safeFileName } from "../../shared/sanitize.js";
@@ -19,13 +21,21 @@ const UploadSchema = z.object({
 
 const MAX_BYTES = 10 * 1024 * 1024; // demo-friendly limit
 
-export const handler: APIGatewayProxyHandlerV2 = async (event) => {
+export const handler: APIGatewayProxyHandler = async (event) => {
   console.log("uploadBook request", {
-    requestId: event.requestContext.requestId,
+    requestId: getRequestId(event),
   });
 
-  if (event.requestContext.http.method === "OPTIONS") {
+  if ((getHttpMethod(event) ?? "").toUpperCase() === "OPTIONS") {
     return json(200, { ok: true });
+  }
+
+  try {
+    requireAuth(event.headers);
+  } catch (e) {
+    const statusCode = (e as any)?.statusCode;
+    if (statusCode === 401) return error(401, (e as Error).message);
+    return error(401, "Unauthorized");
   }
 
   const parsed = parseJsonBody<unknown>(event.body ?? null);

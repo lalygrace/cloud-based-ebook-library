@@ -6,6 +6,7 @@ import {
   TABLE_NAME,
   REGION,
   localstackEndpoint,
+  publicLocalstackEndpoint,
 } from "./config.js";
 
 export const RESOURCE_CONFIG = {
@@ -14,10 +15,10 @@ export const RESOURCE_CONFIG = {
   tableName: TABLE_NAME,
 };
 
-function baseClientConfig() {
+function baseClientConfig(endpoint: string) {
   return {
     region: REGION,
-    endpoint: localstackEndpoint(),
+    endpoint,
     credentials: {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "test",
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "test",
@@ -26,11 +27,17 @@ function baseClientConfig() {
 }
 
 export const s3 = new S3Client({
-  ...baseClientConfig(),
+  ...baseClientConfig(localstackEndpoint()),
   forcePathStyle: true,
 });
 
-const dynamodb = new DynamoDBClient(baseClientConfig());
+// Used only for presigning URLs that must be reachable from the user's browser.
+export const s3Public = new S3Client({
+  ...baseClientConfig(publicLocalstackEndpoint()),
+  forcePathStyle: true,
+});
+
+const dynamodb = new DynamoDBClient(baseClientConfig(localstackEndpoint()));
 export const ddb = DynamoDBDocumentClient.from(dynamodb, {
   marshallOptions: { removeUndefinedValues: true },
 });

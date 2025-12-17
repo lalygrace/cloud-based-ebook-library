@@ -1,17 +1,27 @@
-import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
+import type { APIGatewayProxyHandler } from "aws-lambda";
 import { GetCommand } from "@aws-sdk/lib-dynamodb";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { ddb, RESOURCE_CONFIG, s3 } from "../../shared/aws.js";
+import { requireAuth } from "../../shared/auth.js";
+import { getHttpMethod, getRequestId } from "../../shared/apigw.js";
+import { ddb, RESOURCE_CONFIG, s3Public } from "../../shared/aws.js";
 import { error, json } from "../../shared/http.js";
 import { PRESIGN_EXPIRES_SECONDS } from "../../shared/config.js";
 import type { BookItem } from "../../shared/types.js";
 
-export const handler: APIGatewayProxyHandlerV2 = async (event) => {
-  console.log("getBook request", { requestId: event.requestContext.requestId });
+export const handler: APIGatewayProxyHandler = async (event) => {
+  console.log("getBook request", { requestId: getRequestId(event) });
 
-  if (event.requestContext.http.method === "OPTIONS") {
+  if ((getHttpMethod(event) ?? "").toUpperCase() === "OPTIONS") {
     return json(200, { ok: true });
+  }
+
+  try {
+    requireAuth(event.headers);
+  } catch (e) {
+    const statusCode = (e as any)?.statusCode;
+    if (statusCode === 401) return error(401, (e as Error).message);
+    return error(401, "Unauthorized");
   }
 
   const bookId = event.pathParameters?.bookId;
@@ -29,7 +39,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     if (!item) return error(404, "Book not found");
 
     const url = await getSignedUrl(
-      s3,
+      s3Public,
       new GetObjectCommand({
         Bucket: RESOURCE_CONFIG.bucketName,
         Key: item.s3Key,
