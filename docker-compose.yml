@@ -1,0 +1,31 @@
+services:
+  localstack:
+    image: localstack/localstack:3.8
+    container_name: ebook-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,dynamodb,lambda,apigateway,iam,logs,cloudwatch
+      - DEBUG=1
+      - PERSISTENCE=1
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - LAMBDA_EXECUTOR=docker-reuse
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - ./infra/localstack/state:/var/lib/localstack
+      - ./infra/localstack/init:/etc/localstack/init
+      - ./infra/localstack/artifacts:/artifacts
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bash",
+          "-lc",
+          'curl -s http://localhost:4566/_localstack/health | grep -q ''"running": true''',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
