@@ -9,6 +9,21 @@ export type BookItem = {
   uploadedAt: string;
 };
 
+export type UserRole = "user" | "admin";
+
+export type User = {
+  userId: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  createdAt?: string;
+};
+
+type AuthResponse = {
+  token: string;
+  user: User;
+};
+
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";
@@ -20,17 +35,68 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 function apiBase(): string {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!base) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_API_BASE_URL. Run ./scripts/localstack-api-env.sh after starting LocalStack."
-    );
-  }
-  return base.replace(/\/$/, "");
+  // Same-origin proxy to avoid CORS + stale LocalStack API IDs.
+  return "/api/proxy";
 }
 
-export async function listBooks(): Promise<BookItem[]> {
-  const res = await fetch(`${apiBase()}/books`, { cache: "no-store" });
+async function apiFetch(
+  path: string,
+  init?: RequestInit & { token?: string | null }
+): Promise<Response> {
+  const token = init?.token ?? null;
+  const headers = new Headers(init?.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return fetch(`${apiBase()}${path}`, { ...init, headers, cache: "no-store" });
+}
+
+export async function signup(input: {
+  email: string;
+  name: string;
+  password: string;
+}): Promise<AuthResponse> {
+  const res = await apiFetch("/auth/signup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Signup failed: ${res.status} ${text}`);
+  }
+
+  return (await res.json()) as AuthResponse;
+}
+
+export async function login(input: {
+  email: string;
+  password: string;
+}): Promise<AuthResponse> {
+  const res = await apiFetch("/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Login failed: ${res.status} ${text}`);
+  }
+
+  return (await res.json()) as AuthResponse;
+}
+
+export async function me(token: string): Promise<{ user: User }> {
+  const res = await apiFetch("/auth/me", { token });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Me failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as { user: User };
+}
+
+export async function listBooks(token: string): Promise<BookItem[]> {
+  const res = await apiFetch("/books", { token });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`List failed: ${res.status} ${text}`);
@@ -44,13 +110,15 @@ export async function uploadBook(input: {
   author: string;
   genre?: string;
   file: File;
+  token: string;
 }): Promise<BookItem> {
   const buffer = await input.file.arrayBuffer();
   const fileBase64 = arrayBufferToBase64(buffer);
 
-  const res = await fetch(`${apiBase()}/books`, {
+  const res = await apiFetch("/books", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    token: input.token,
     body: JSON.stringify({
       title: input.title,
       author: input.author,
@@ -70,11 +138,10 @@ export async function uploadBook(input: {
 }
 
 export async function getBookDownload(
-  bookId: string
+  bookId: string,
+  token: string
 ): Promise<{ item: BookItem; url: string }> {
-  const res = await fetch(`${apiBase()}/books/${encodeURIComponent(bookId)}`, {
-    cache: "no-store",
-  });
+  const res = await apiFetch(`/books/${encodeURIComponent(bookId)}`, { token });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Get failed: ${res.status} ${text}`);
@@ -82,15 +149,10 @@ export async function getBookDownload(
   return (await res.json()) as { item: BookItem; url: string };
 }
 
-export async function deleteBook(
-  bookId: string,
-  role: "user" | "admin"
-): Promise<void> {
-  const res = await fetch(`${apiBase()}/books/${encodeURIComponent(bookId)}`, {
+export async function deleteBook(bookId: string, token: string): Promise<void> {
+  const res = await apiFetch(`/books/${encodeURIComponent(bookId)}`, {
     method: "DELETE",
-    headers: {
-      "x-role": role,
-    },
+    token,
   });
 
   if (res.status === 204) return;

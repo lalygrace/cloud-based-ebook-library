@@ -7,7 +7,7 @@ import { hashPassword, signToken } from "../../shared/auth.js";
 import { getHttpMethod, getRequestId } from "../../shared/apigw.js";
 import { ddb } from "../../shared/aws.js";
 import { error, json, parseJsonBody } from "../../shared/http.js";
-import { USERS_TABLE_NAME } from "../../shared/config.js";
+import { ADMIN_EMAIL, USERS_TABLE_NAME } from "../../shared/config.js";
 import type { UserItem } from "../../shared/types.js";
 
 const SignupSchema = z.object({
@@ -50,7 +50,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       userId,
       email,
       name,
-      role: "user",
+      role: email === ADMIN_EMAIL ? "admin" : "user",
       passwordHash,
       createdAt,
     };

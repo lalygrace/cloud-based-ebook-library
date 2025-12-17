@@ -10,6 +10,10 @@ export const PRESIGN_EXPIRES_SECONDS = Number(
 export const JWT_SECRET =
   process.env.JWT_SECRET ?? "local-dev-insecure-secret-change-me";
 
+export const ADMIN_EMAIL = (process.env.ADMIN_EMAIL ?? "admin@local.test")
+  .trim()
+  .toLowerCase();
+
 export function localstackEndpoint(): string {
   const host =
     process.env.LOCALSTACK_HOSTNAME ??

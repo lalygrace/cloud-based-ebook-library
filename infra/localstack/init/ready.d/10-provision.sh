@@ -13,6 +13,7 @@ STAGE_NAME="${STAGE_NAME:-local}"
 ROLE_NAME="${ROLE_NAME:-ebook-library-lambda-role}"
 POLICY_NAME="${POLICY_NAME:-ebook-library-lambda-policy}"
 JWT_SECRET="${JWT_SECRET:-local-dev-insecure-secret-change-me}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@local.test}"
 
 function log() {
   echo "[provision] $*"
@@ -118,7 +119,7 @@ function ensure_lambda() {
   fi
 
   local lambda_env
-  lambda_env="Variables={BUCKET_NAME=$BUCKET_NAME,TABLE_NAME=$TABLE_NAME,USERS_TABLE_NAME=$USERS_TABLE_NAME,JWT_SECRET=$JWT_SECRET,AWS_ENDPOINT_HOST=localstack,AWS_ENDPOINT_PORT=4566,PUBLIC_AWS_ENDPOINT_HOST=localhost,PUBLIC_AWS_ENDPOINT_PORT=4566,PRESIGN_EXPIRES_SECONDS=300}"
+  lambda_env="Variables={BUCKET_NAME=$BUCKET_NAME,TABLE_NAME=$TABLE_NAME,USERS_TABLE_NAME=$USERS_TABLE_NAME,JWT_SECRET=$JWT_SECRET,ADMIN_EMAIL=$ADMIN_EMAIL,AWS_ENDPOINT_HOST=localstack,AWS_ENDPOINT_PORT=4566,PUBLIC_AWS_ENDPOINT_HOST=localhost,PUBLIC_AWS_ENDPOINT_PORT=4566,PRESIGN_EXPIRES_SECONDS=300}"
 
   if awslocal lambda get-function --function-name "$fn" >/dev/null 2>&1; then
     log "Updating Lambda code: $fn"

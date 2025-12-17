@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "./lib/auth-context";
 import {
   deleteBook,
   getBookDownload,
@@ -10,21 +12,20 @@ import {
 } from "./lib/api";
 
 export default function Home() {
+  const router = useRouter();
+  const auth = useAuth();
   const [items, setItems] = useState<BookItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [role, setRole] = useState<"user" | "admin">("user");
 
-  const hasApiBase = useMemo(
-    () => Boolean(process.env.NEXT_PUBLIC_API_BASE_URL),
-    []
-  );
+  const hasApiBase = useMemo(() => true, []);
 
   async function refresh() {
     setError(null);
     setLoading(true);
     try {
-      const data = await listBooks();
+      if (!auth.token) throw new Error("Not authenticated");
+      const data = await listBooks(auth.token);
       setItems(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
@@ -38,13 +39,18 @@ export default function Home() {
       setLoading(false);
       return;
     }
-    void refresh();
-  }, [hasApiBase]);
+    if (!auth.loading && !auth.token) {
+      setLoading(false);
+      return;
+    }
+    if (!auth.loading && auth.token) void refresh();
+  }, [hasApiBase, auth.loading, auth.token]);
 
   async function onDownload(bookId: string) {
     setError(null);
     try {
-      const { url } = await getBookDownload(bookId);
+      if (!auth.token) throw new Error("Not authenticated");
+      const { url } = await getBookDownload(bookId, auth.token);
       window.location.href = url;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Download failed");
@@ -54,7 +60,8 @@ export default function Home() {
   async function onDelete(bookId: string) {
     setError(null);
     try {
-      await deleteBook(bookId, role);
+      if (!auth.token) throw new Error("Not authenticated");
+      await deleteBook(bookId, auth.token);
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Delete failed");
@@ -72,43 +79,70 @@ export default function Home() {
             <p className="text-sm text-zinc-600">LocalStack serverless demo</p>
           </div>
           <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-zinc-600">
-              Role
-              <select
-                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm"
-                value={role}
-                onChange={(e) => setRole(e.target.value as "user" | "admin")}
-              >
-                <option value="user">user</option>
-                <option value="admin">admin</option>
-              </select>
-            </label>
-            <Link
-              href="/upload"
-              className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
-            >
-              Upload
-            </Link>
+            {auth.user ? (
+              <div className="text-sm text-zinc-600">
+                <span className="font-medium text-zinc-900">
+                  {auth.user.name}
+                </span>
+                <span className="ml-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700">
+                  {auth.user.role}
+                </span>
+              </div>
+            ) : null}
+
+            {auth.user ? (
+              <>
+                <Link
+                  href="/upload"
+                  className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+                >
+                  Upload
+                </Link>
+                <button
+                  className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm hover:bg-zinc-50"
+                  onClick={() => {
+                    auth.logout();
+                    router.push("/login");
+                  }}
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm hover:bg-zinc-50"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/signup"
+                  className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+                >
+                  Sign up
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8">
-        {!hasApiBase ? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            <p className="font-medium">Missing API base URL</p>
-            <p className="mt-1">
-              Run{" "}
-              <span className="font-mono">./scripts/localstack-api-env.sh</span>{" "}
-              to generate
-              <span className="font-mono"> frontend/.env.local</span>.
-            </p>
-          </div>
-        ) : null}
+        {null}
 
         {error ? (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
             {error}
+          </div>
+        ) : null}
+
+        {!auth.loading && !auth.user ? (
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-700">
+            <p className="font-medium">Sign in to view your library</p>
+            <p className="mt-1 text-zinc-600">
+              Create an account or log in to upload and access your e‑books.
+            </p>
           </div>
         ) : null}
 
@@ -161,15 +195,14 @@ export default function Home() {
                     >
                       Download
                     </button>
-                    <button
-                      className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs hover:bg-zinc-50"
-                      onClick={() => void onDelete(b.bookId)}
-                      title={
-                        role === "admin" ? "Delete" : "Requires admin role"
-                      }
-                    >
-                      Delete
-                    </button>
+                    {auth.user?.role === "admin" ? (
+                      <button
+                        className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs hover:bg-zinc-50"
+                        onClick={() => void onDelete(b.bookId)}
+                      >
+                        Delete
+                      </button>
+                    ) : null}
                   </div>
                 </li>
               ))}

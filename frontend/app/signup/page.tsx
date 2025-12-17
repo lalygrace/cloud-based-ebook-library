@@ -1,0 +1,128 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useAuth } from "../lib/auth-context";
+
+export default function SignupPage() {
+  const router = useRouter();
+  const auth = useAuth();
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!auth.loading && auth.user) router.replace("/");
+  }, [auth.loading, auth.user, router]);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      await auth.signupWithPassword(email.trim(), name.trim(), password);
+      router.push("/");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Signup failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-zinc-50 text-zinc-900">
+      <header className="border-b border-zinc-200 bg-white">
+        <div className="mx-auto flex max-w-md items-center justify-between px-4 py-4">
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight">Sign up</h1>
+            <p className="text-sm text-zinc-600">Create your account</p>
+          </div>
+          <Link
+            href="/"
+            className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm hover:bg-zinc-50"
+          >
+            Home
+          </Link>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-md px-4 py-8">
+        {error ? (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            {error}
+          </div>
+        ) : null}
+
+        <form
+          onSubmit={onSubmit}
+          className="rounded-lg border border-zinc-200 bg-white p-6"
+        >
+          <div className="grid gap-4">
+            <div>
+              <label className="text-sm font-medium">Name</label>
+              <input
+                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Email</label>
+              <input
+                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                type="email"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Password</label>
+              <input
+                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                type="password"
+                minLength={8}
+                required
+              />
+              <p className="mt-1 text-xs text-zinc-500">
+                Minimum 8 characters.
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={busy}
+              className="mt-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-zinc-400"
+            >
+              {busy ? "Creating…" : "Create account"}
+            </button>
+          </div>
+        </form>
+
+        <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-700">
+          <p className="font-medium">Admin account (demo)</p>
+          <p className="mt-1 text-zinc-600">
+            Sign up with <span className="font-mono">admin@local.test</span> to
+            get admin role.
+          </p>
+        </div>
+
+        <p className="mt-4 text-center text-sm text-zinc-600">
+          Already have an account?{" "}
+          <Link href="/login" className="text-zinc-900 underline">
+            Login
+          </Link>
+        </p>
+      </main>
+    </div>
+  );
+}

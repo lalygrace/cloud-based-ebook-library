@@ -1,10 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useEffect } from "react";
+import { useAuth } from "../lib/auth-context";
 import { uploadBook } from "../lib/api";
 
 export default function UploadPage() {
+  const router = useRouter();
+  const auth = useAuth();
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [genre, setGenre] = useState("");
@@ -13,12 +18,23 @@ export default function UploadPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const canSubmit = title.trim() && author.trim() && file && !busy;
+  const canSubmit =
+    title.trim() && author.trim() && file && !busy && Boolean(auth.token);
+
+  useEffect(() => {
+    if (!auth.loading && !auth.token) router.replace("/login");
+  }, [auth.loading, auth.token, router]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    if (!auth.token) {
+      setError("Please log in");
+      router.push("/login");
+      return;
+    }
 
     if (!file) {
       setError("Please select a file");
@@ -32,6 +48,7 @@ export default function UploadPage() {
         author: author.trim(),
         genre: genre.trim() || undefined,
         file,
+        token: auth.token,
       });
       setSuccess("Upload complete");
       setTitle("");
@@ -70,6 +87,11 @@ export default function UploadPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-8">
+        {auth.loading ? (
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-700">
+            Loading…
+          </div>
+        ) : null}
         {error ? (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
             {error}
