@@ -1,24 +1,14 @@
-import { readFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
-function parseEnv(content: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const line of content.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const idx = trimmed.indexOf("=");
-    if (idx <= 0) continue;
-    const key = trimmed.slice(0, idx).trim();
-    const value = trimmed.slice(idx + 1).trim();
-    out[key] = value;
-  }
-  return out;
-}
+export const runtime = "nodejs";
 
-async function resolveApiBaseUrl(): Promise<string> {
-  // Prefer the persisted LocalStack output for dynamic API IDs.
-  // In dev, Next's process.cwd() is typically the frontend folder.
-  const persisted = path.resolve(
+type RouteContext = { params: { path?: string[] } };
+
+function readApiBaseUrl(): string {
+  // LocalStack provisioning writes this file with the current REST API ID.
+  // We read it at request-time so container restarts (API_ID changes) don’t break the frontend.
+  const envPath = path.resolve(
     process.cwd(),
     "..",
     "infra",
@@ -27,61 +17,69 @@ async function resolveApiBaseUrl(): Promise<string> {
     "ebook-library.env"
   );
 
-  try {
-    const raw = await readFile(persisted, "utf8");
-    const env = parseEnv(raw);
-    const base = env["API_BASE_URL"];
-    if (base) return base.replace(/\/$/, "");
-  } catch {
-    // ignore; fall back to env
+  const raw = readFileSync(envPath, "utf8");
+  const lines = raw.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const value = trimmed.slice(eq + 1).trim();
+    if (key === "API_BASE_URL") return value;
   }
 
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!base) {
-    throw new Error(
-      "Missing LocalStack API base URL. Start LocalStack and run ./scripts/localstack-api-env.sh"
-    );
-  }
-  return base.replace(/\/$/, "");
+  throw new Error(`API_BASE_URL not found in ${envPath}`);
 }
 
-async function handler(req: Request, params: Promise<{ path?: string[] }>) {
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      },
-    });
+function joinUrl(base: string, pathname: string, search: string): string {
+  const baseWithSlash = base.endsWith("/") ? base : `${base}/`;
+  const url = new URL(pathname.replace(/^\//, ""), baseWithSlash);
+  url.search = search;
+  return url.toString();
+}
+
+function downstreamPathFromRequest(requestUrl: string): string {
+  const { pathname } = new URL(requestUrl);
+  const prefix = "/api/proxy";
+
+  if (pathname === prefix) return "/";
+  if (pathname.startsWith(prefix + "/")) return pathname.slice(prefix.length);
+
+  return "/";
+}
+
+async function proxy(request: Request, ctx: RouteContext): Promise<Response> {
+  let apiBaseUrl: string;
+  try {
+    apiBaseUrl = readApiBaseUrl();
+  } catch (e) {
+    const message =
+      e instanceof Error ? e.message : "Failed to resolve API_BASE_URL";
+    return new Response(message, { status: 500 });
   }
 
-  const apiBase = await resolveApiBaseUrl();
-  const { path: pathParts = [] } = await params;
+  const pathname = downstreamPathFromRequest(request.url);
+  const url = joinUrl(apiBaseUrl, pathname, new URL(request.url).search);
 
-  const url = new URL(req.url);
-  const target = `${apiBase}/${pathParts.map(encodeURIComponent).join("/")}${
-    url.search
-  }`;
-
-  const headers = new Headers(req.headers);
+  const headers = new Headers(request.headers);
+  // Avoid forwarding hop-by-hop headers.
   headers.delete("host");
+  headers.delete("connection");
+  headers.delete("content-length");
 
-  const upstream = await fetch(target, {
-    method: req.method,
+  const method = request.method.toUpperCase();
+  const hasBody = !["GET", "HEAD"].includes(method);
+
+  const upstream = await fetch(url, {
+    method,
     headers,
-    body:
-      req.method === "GET" || req.method === "HEAD"
-        ? undefined
-        : await req.arrayBuffer(),
+    body: hasBody ? await request.arrayBuffer() : undefined,
     redirect: "manual",
   });
 
   const resHeaders = new Headers(upstream.headers);
-  // Ensure same-origin callers can read it; browser-side CORS isn't needed anymore,
-  // but keep this for safety when debugging.
-  resHeaders.set("Access-Control-Allow-Origin", "*");
+  resHeaders.delete("transfer-encoding");
 
   return new Response(upstream.body, {
     status: upstream.status,
@@ -89,27 +87,21 @@ async function handler(req: Request, params: Promise<{ path?: string[] }>) {
   });
 }
 
-export function GET(
-  req: Request,
-  ctx: { params: Promise<{ path?: string[] }> }
-) {
-  return handler(req, ctx.params);
+export async function GET(request: Request, ctx: RouteContext) {
+  return proxy(request, ctx);
 }
-export function POST(
-  req: Request,
-  ctx: { params: Promise<{ path?: string[] }> }
-) {
-  return handler(req, ctx.params);
+export async function POST(request: Request, ctx: RouteContext) {
+  return proxy(request, ctx);
 }
-export function DELETE(
-  req: Request,
-  ctx: { params: Promise<{ path?: string[] }> }
-) {
-  return handler(req, ctx.params);
+export async function PUT(request: Request, ctx: RouteContext) {
+  return proxy(request, ctx);
 }
-export function OPTIONS(
-  req: Request,
-  ctx: { params: Promise<{ path?: string[] }> }
-) {
-  return handler(req, ctx.params);
+export async function PATCH(request: Request, ctx: RouteContext) {
+  return proxy(request, ctx);
+}
+export async function DELETE(request: Request, ctx: RouteContext) {
+  return proxy(request, ctx);
+}
+export async function OPTIONS(request: Request, ctx: RouteContext) {
+  return proxy(request, ctx);
 }
