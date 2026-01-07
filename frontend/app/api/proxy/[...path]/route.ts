@@ -49,6 +49,7 @@ function downstreamPathFromRequest(requestUrl: string): string {
   return "/";
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function proxy(request: Request, ctx: RouteContext): Promise<Response> {
   let apiBaseUrl: string;
   try {
