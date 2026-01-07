@@ -44,7 +44,7 @@ export default function Home() {
       return;
     }
     if (!auth.loading && auth.token) void refresh();
-  }, [hasApiBase, auth.loading, auth.token]);
+  }, [hasApiBase, auth.loading, auth.token, refresh]);
 
   async function onDownload(bookId: string) {
     setError(null);
