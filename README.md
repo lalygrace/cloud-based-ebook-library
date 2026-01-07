@@ -10,7 +10,7 @@ A simple but professional, teacher-friendly serverless e‑book library:
 
 ## 0) Prerequisites
 
-- Node.js 20+ (you have Node 22)
+- Node.js 20+
 - `pnpm`
 - Docker Desktop
 
