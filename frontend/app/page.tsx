@@ -20,6 +20,7 @@ export default function Home() {
 
   const hasApiBase = useMemo(() => true, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   async function refresh() {
     setError(null);
     setLoading(true);
