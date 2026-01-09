@@ -126,7 +126,7 @@ export default function UploadPage() {
                 className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
                 value={author}
                 onChange={(e) => setAuthor(e.target.value)}
-                placeholder="e.g. Abebe Kebede"
+                placeholder="e.g. Abebe Chala"
                 required
               />
             </div>
