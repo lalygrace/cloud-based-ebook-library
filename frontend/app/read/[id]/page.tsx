@@ -2,23 +2,26 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { useAuth } from "../../lib/auth-context";
 import { useToast } from "../../lib/toast-context";
 import { getBookDownload, type BookItem } from "../../lib/api";
 import EpubViewer from "../../components/epub-viewer";
 
-export default function ReaderPage({ params }: { params: { id: string } }) {
+export default function ReaderPage() {
   const auth = useAuth();
   const toast = useToast();
+  const params = useParams<{ id?: string }>();
   const [item, setItem] = useState<BookItem | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const bookId = Array.isArray(params?.id) ? params?.id[0] : params?.id;
     async function load() {
       if (auth.loading) return;
-      if (!params.id || params.id === "undefined") {
+      if (!bookId || bookId === "undefined") {
         setError("Invalid book link. Try opening it from the library again.");
         setLoading(false);
         return;
@@ -30,7 +33,7 @@ export default function ReaderPage({ params }: { params: { id: string } }) {
       setError(null);
       setLoading(true);
       try {
-        const { item, url } = await getBookDownload(params.id, auth.token);
+        const { item, url } = await getBookDownload(bookId, auth.token);
         setItem(item);
         setUrl(url);
       } catch (e) {
@@ -51,7 +54,7 @@ export default function ReaderPage({ params }: { params: { id: string } }) {
       }
     }
     void load();
-  }, [auth.loading, auth.token, params.id, toast]);
+  }, [auth.loading, auth.token, params, toast]);
 
   const isPdf = item?.contentType?.startsWith("application/pdf");
   const isEpub = item?.contentType?.includes("epub");
