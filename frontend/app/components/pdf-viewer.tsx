@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 
 // Use a bundled worker so this works in Next dev/prod.
@@ -17,12 +17,50 @@ type Props = {
 };
 
 export default function PdfViewer({ url, title, downloadUrl }: Props) {
+  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [scale, setScale] = useState(1.1);
   const [error, setError] = useState<string | null>(null);
+  const [loadingPdf, setLoadingPdf] = useState(true);
 
-  const file = useMemo(() => ({ url }), [url]);
+  useEffect(() => {
+    const controller = new AbortController();
+
+    setError(null);
+    setLoadingPdf(true);
+    setPdfData(null);
+    setNumPages(null);
+    setPage(1);
+
+    fetch(url, { cache: "no-store", signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(text || `Failed to fetch PDF (${res.status})`);
+        }
+        return res.arrayBuffer();
+      })
+      .then((buf) => {
+        setPdfData(buf);
+      })
+      .catch((e) => {
+        if (e?.name === "AbortError") return;
+        setError(e instanceof Error ? e.message : "Failed to load PDF");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingPdf(false);
+      });
+
+    return () => controller.abort();
+  }, [url]);
+
+  // Render from in-memory data to avoid PDF.js doing HEAD/range probing
+  // (some proxies respond unexpectedly to those requests).
+  const file = useMemo(() => {
+    if (!pdfData) return null;
+    return { data: pdfData } as const;
+  }, [pdfData]);
 
   function clampPage(next: number, total: number | null) {
     if (!total) return Math.max(1, next);
@@ -101,29 +139,30 @@ export default function PdfViewer({ url, title, downloadUrl }: Props) {
       ) : null}
 
       <div className="flex justify-center bg-zinc-100 p-3">
-        <Document
-          file={file}
-          onLoadSuccess={(doc) => {
-            setNumPages(doc.numPages);
-            setPage((p) => clampPage(p, doc.numPages));
-          }}
-          onLoadError={(e) => {
-            setError(e instanceof Error ? e.message : "Failed to load PDF");
-          }}
-          loading={
-            <div className="w-full rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-700">
-              Loading PDF…
-            </div>
-          }
-        >
-          <Page
-            pageNumber={page}
-            scale={scale}
-            renderAnnotationLayer={false}
-            renderTextLayer={false}
-            className="shadow"
-          />
-        </Document>
+        {loadingPdf ? (
+          <div className="w-full rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-700">
+            Loading PDF…
+          </div>
+        ) : file ? (
+          <Document
+            file={file}
+            onLoadSuccess={(doc) => {
+              setNumPages(doc.numPages);
+              setPage((p) => clampPage(p, doc.numPages));
+            }}
+            onLoadError={(e) => {
+              setError(e instanceof Error ? e.message : "Failed to load PDF");
+            }}
+          >
+            <Page
+              pageNumber={page}
+              scale={scale}
+              renderAnnotationLayer={false}
+              renderTextLayer={false}
+              className="shadow"
+            />
+          </Document>
+        ) : null}
       </div>
     </div>
   );

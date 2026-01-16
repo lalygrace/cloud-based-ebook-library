@@ -82,8 +82,7 @@ function parseParams(request: Request):
     ""
   );
   const disposition =
-    (searchParams.get("disposition") || "inline").toLowerCase() ===
-    "attachment"
+    (searchParams.get("disposition") || "inline").toLowerCase() === "attachment"
       ? "attachment"
       : "inline";
 
