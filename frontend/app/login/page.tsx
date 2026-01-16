@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "../lib/auth-context";
+import { useToast } from "../lib/toast-context";
 
 export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
+  const toast = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -23,9 +25,12 @@ export default function LoginPage() {
     setBusy(true);
     try {
       await auth.loginWithPassword(email.trim(), password);
+      toast.success("Welcome back", "Signed in");
       router.push("/");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Login failed");
+      const msg = e instanceof Error ? e.message : "Login failed";
+      setError(msg);
+      toast.error(msg, "Login failed");
     } finally {
       setBusy(false);
     }

@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "../lib/auth-context";
+import { useToast } from "../lib/toast-context";
 
 export default function SignupPage() {
   const router = useRouter();
   const auth = useAuth();
+  const toast = useToast();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -25,9 +27,12 @@ export default function SignupPage() {
     setBusy(true);
     try {
       await auth.signupWithPassword(email.trim(), name.trim(), password);
+      toast.success("Account created", "Welcome");
       router.push("/");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Signup failed");
+      const msg = e instanceof Error ? e.message : "Signup failed";
+      setError(msg);
+      toast.error(msg, "Signup failed");
     } finally {
       setBusy(false);
     }

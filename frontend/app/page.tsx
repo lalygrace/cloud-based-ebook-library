@@ -10,10 +10,12 @@ import {
   listBooks,
   type BookItem,
 } from "./lib/api";
+import { useToast } from "./lib/toast-context";
 
 export default function Home() {
   const router = useRouter();
   const auth = useAuth();
+  const toast = useToast();
   const [items, setItems] = useState<BookItem[]>([]);
   const [lastKey, setLastKey] = useState<unknown | null>(null);
   const [q, setQ] = useState("");
@@ -68,8 +70,11 @@ export default function Home() {
         throw new Error("File not found in storage. Please re-upload.");
       }
       window.location.href = url;
+      toast.info("Your download will start", "Preparing file");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Download failed");
+      const msg = e instanceof Error ? e.message : "Download failed";
+      setError(msg);
+      toast.error(msg, "Download failed");
     }
   }
 
@@ -97,10 +102,14 @@ export default function Home() {
     setError(null);
     try {
       if (!auth.token) throw new Error("Not authenticated");
+      if (!window.confirm("Delete this book?")) return;
       await deleteBook(bookId, auth.token);
+      toast.success("Book deleted");
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Delete failed");
+      const msg = e instanceof Error ? e.message : "Delete failed";
+      setError(msg);
+      toast.error(msg, "Delete failed");
     }
   }
 

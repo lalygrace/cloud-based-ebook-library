@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useEffect } from "react";
 import { useAuth } from "../lib/auth-context";
+import { useToast } from "../lib/toast-context";
 import { uploadBook } from "../lib/api";
 
 export default function UploadPage() {
   const router = useRouter();
   const auth = useAuth();
+  const toast = useToast();
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [genre, setGenre] = useState("");
@@ -60,6 +62,8 @@ export default function UploadPage() {
       clearInterval(interval);
       setProgress(100);
       setSuccess("Upload complete");
+      toast.success("Upload complete", "Success");
+      setTimeout(() => router.push("/"), 300);
       setTitle("");
       setAuthor("");
       setGenre("");
@@ -68,7 +72,9 @@ export default function UploadPage() {
       const input = document.getElementById("file") as HTMLInputElement | null;
       if (input) input.value = "";
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed");
+      const msg = e instanceof Error ? e.message : "Upload failed";
+      setError(msg);
+      toast.error(msg, "Upload failed");
     } finally {
       setBusy(false);
       setTimeout(() => setProgress(0), 800);
