@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "./lib/auth-context";
 import {
   deleteBook,
@@ -23,10 +23,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const hasApiBase = useMemo(() => true, []);
+  const hasApiBase = true;
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setError(null);
     setLoading(true);
     try {
@@ -43,8 +42,10 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [auth.token, genre, q]);
 
+  // We intentionally don't depend on `refresh` to avoid retriggering on each render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!hasApiBase) {
       setLoading(false);
@@ -55,7 +56,7 @@ export default function Home() {
       return;
     }
     if (!auth.loading && auth.token) void refresh();
-  }, [hasApiBase, auth.loading, auth.token, refresh]);
+  }, [hasApiBase, auth.loading, auth.token]);
 
   async function onDownload(bookId: string) {
     setError(null);
