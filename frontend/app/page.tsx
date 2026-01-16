@@ -105,14 +105,19 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
-      <header className="border-b border-zinc-200 bg-white">
+    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white text-zinc-900">
+      <header className="border-b border-zinc-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight">
-              E‑Book Library
-            </h1>
-            <p className="text-sm text-zinc-600">LocalStack serverless demo</p>
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-md bg-zinc-900"></div>
+            <div>
+              <h1 className="text-lg font-semibold tracking-tight">
+                E‑Book Library
+              </h1>
+              <p className="text-xs text-zinc-600">
+                LocalStack · Serverless · Next.js
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             {auth.user ? (
@@ -165,6 +170,28 @@ export default function Home() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8">
+        <section className="mb-6 rounded-xl border border-zinc-200 bg-white p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight">
+                Your Cloud Library
+              </h2>
+              <p className="mt-1 text-sm text-zinc-600">
+                Upload, store, and securely access your e‑books.
+              </p>
+            </div>
+            {auth.user ? (
+              <Link
+                href="/upload"
+                className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+              >
+                Upload a book
+              </Link>
+            ) : (
+              <div className="text-sm text-zinc-600">Sign in to upload</div>
+            )}
+          </div>
+        </section>
         {null}
 
         {error ? (
@@ -207,59 +234,65 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200 bg-white">
-          <div className="grid grid-cols-12 gap-2 border-b border-zinc-200 px-4 py-3 text-xs font-medium text-zinc-600">
-            <div className="col-span-5">Title</div>
-            <div className="col-span-3">Author</div>
-            <div className="col-span-2">Uploaded</div>
-            <div className="col-span-2 text-right">Actions</div>
-          </div>
-
+        <div className="mt-4">
           {loading ? (
-            <div className="px-4 py-6 text-sm text-zinc-600">Loading…</div>
+            <div className="rounded-xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600">
+              Loading…
+            </div>
           ) : items.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-zinc-600">
+            <div className="rounded-xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600">
               No books yet. Upload one.
             </div>
           ) : (
-            <ul className="divide-y divide-zinc-200">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {items.map((b) => (
-                <li
+                <div
                   key={b.bookId}
-                  className="grid grid-cols-12 gap-2 px-4 py-4 text-sm"
+                  className="group rounded-xl border border-zinc-200 bg-white p-4 shadow-sm hover:shadow-md"
                 >
-                  <div className="col-span-5">
-                    <div className="font-medium">{b.title}</div>
-                    <div className="text-xs text-zinc-500">
-                      {b.originalFileName}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="line-clamp-1 text-sm font-semibold text-zinc-900">
+                        {b.title}
+                      </h3>
+                      <p className="mt-1 line-clamp-1 text-xs text-zinc-600">
+                        {b.author}
+                      </p>
                     </div>
+                    {b.genre ? (
+                      <span className="rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700">
+                        {b.genre}
+                      </span>
+                    ) : null}
                   </div>
-                  <div className="col-span-3 text-zinc-700">{b.author}</div>
-                  <div className="col-span-2 text-xs text-zinc-600">
+                  <p className="mt-2 line-clamp-1 text-xs text-zinc-500">
+                    {b.originalFileName}
+                  </p>
+                  <p className="mt-2 text-xs text-zinc-500">
                     {new Date(b.uploadedAt).toLocaleString()}
-                  </div>
-                  <div className="col-span-2 flex justify-end gap-2">
+                  </p>
+                  <div className="mt-3 flex gap-2">
                     <button
-                      className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs hover:bg-zinc-50"
+                      className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs hover:bg-zinc-50"
                       onClick={() => void onDownload(b.bookId)}
                     >
                       Download
                     </button>
                     {auth.user?.role === "admin" ? (
                       <button
-                        className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs hover:bg-zinc-50"
+                        className="rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white hover:bg-zinc-800"
                         onClick={() => void onDelete(b.bookId)}
                       >
                         Delete
                       </button>
                     ) : null}
                   </div>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
           {items.length > 0 ? (
-            <div className="flex justify-center border-t border-zinc-200 p-3">
+            <div className="mt-4 flex justify-center">
               <button
                 className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm hover:bg-zinc-50"
                 disabled={!lastKey || loading}

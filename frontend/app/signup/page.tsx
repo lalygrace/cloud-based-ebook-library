@@ -34,8 +34,8 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
-      <header className="border-b border-zinc-200 bg-white">
+    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white text-zinc-900">
+      <header className="border-b border-zinc-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-md items-center justify-between px-4 py-4">
           <div>
             <h1 className="text-lg font-semibold tracking-tight">Sign up</h1>
@@ -59,7 +59,7 @@ export default function SignupPage() {
 
         <form
           onSubmit={onSubmit}
-          className="rounded-lg border border-zinc-200 bg-white p-6"
+          className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm"
         >
           <div className="grid gap-4">
             <div>
@@ -108,7 +108,7 @@ export default function SignupPage() {
           </div>
         </form>
 
-        <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-700">
+        <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm">
           <p className="font-medium">Admin account (demo)</p>
           <p className="mt-1 text-zinc-600">
             Sign up with <span className="font-mono">admin@local.test</span> to

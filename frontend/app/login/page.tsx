@@ -32,8 +32,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
-      <header className="border-b border-zinc-200 bg-white">
+    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white text-zinc-900">
+      <header className="border-b border-zinc-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-md items-center justify-between px-4 py-4">
           <div>
             <h1 className="text-lg font-semibold tracking-tight">Login</h1>
@@ -57,7 +57,7 @@ export default function LoginPage() {
 
         <form
           onSubmit={onSubmit}
-          className="rounded-lg border border-zinc-200 bg-white p-6"
+          className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm"
         >
           <div className="grid gap-4">
             <div>
