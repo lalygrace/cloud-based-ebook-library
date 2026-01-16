@@ -114,16 +114,6 @@ export default function ReaderPage() {
             >
               Back
             </Link>
-            {url ? (
-              <a
-                href={url}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm hover:bg-zinc-50"
-              >
-                Open original
-              </a>
-            ) : null}
           </div>
         </div>
       </header>
@@ -143,13 +133,7 @@ export default function ReaderPage() {
 
         {!loading && item && url ? (
           isPdf ? (
-            <PdfViewer
-              url={viewUrl ?? url}
-              title={item.originalFileName}
-              downloadUrl={`/api/proxy/books/${encodeURIComponent(
-                item.bookId
-              )}?disposition=attachment`}
-            />
+            <PdfViewer url={viewUrl ?? url} title={item.originalFileName} />
           ) : isEpub ? (
             <EpubViewer url={viewUrl ?? url} />
           ) : (

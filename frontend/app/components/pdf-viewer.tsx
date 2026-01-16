@@ -18,6 +18,7 @@ type Props = {
 
 export default function PdfViewer({ url, title, downloadUrl }: Props) {
   const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
+  const [pdfBytes, setPdfBytes] = useState<number | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [scale, setScale] = useState(1.1);
@@ -30,6 +31,7 @@ export default function PdfViewer({ url, title, downloadUrl }: Props) {
     setError(null);
     setLoadingPdf(true);
     setPdfData(null);
+    setPdfBytes(null);
     setNumPages(null);
     setPage(1);
 
@@ -42,6 +44,19 @@ export default function PdfViewer({ url, title, downloadUrl }: Props) {
         return res.arrayBuffer();
       })
       .then((buf) => {
+        setPdfBytes(buf.byteLength);
+        if (buf.byteLength === 0) {
+          throw new Error(
+            "The PDF response was empty (0 bytes). This usually means the upload failed or the stored file is missing/corrupted. Please re-upload the PDF."
+          );
+        }
+        // Heuristic: PDFs smaller than ~1KB are almost certainly truncated/corrupt.
+        // (A valid PDF typically contains at least header + xref + trailer.)
+        if (buf.byteLength < 1024) {
+          throw new Error(
+            `The stored PDF looks corrupted/truncated (${buf.byteLength} bytes). Please re-upload a valid PDF.`
+          );
+        }
         setPdfData(buf);
       })
       .catch((e) => {
@@ -134,7 +149,12 @@ export default function PdfViewer({ url, title, downloadUrl }: Props) {
 
       {error ? (
         <div className="m-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-          {error}
+          <div>{error}</div>
+          {pdfBytes !== null ? (
+            <div className="mt-1 text-xs text-red-700">
+              Fetched size: {pdfBytes} bytes
+            </div>
+          ) : null}
         </div>
       ) : null}
 
