@@ -244,7 +244,7 @@ export default function Home() {
         </div>
 
         <div className="mt-4">
-          {loading ? (
+          {loading && items.length === 0 ? (
             <div className="rounded-xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600">
               Loading…
             </div>
