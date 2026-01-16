@@ -12,7 +12,55 @@ function isAllowedUpstream(url: URL): boolean {
   return allowedHosts.has(url.hostname) && allowedPorts.has(url.port);
 }
 
-export async function GET(request: Request): Promise<Response> {
+function buildResponseHeaders(params: {
+  contentType?: string;
+  fileName: string;
+  disposition: "inline" | "attachment";
+  upstreamHeaders: Headers;
+}): Headers {
+  const headers = new Headers();
+
+  // Prefer explicit contentType (from our API) to avoid download-triggering octet-stream.
+  headers.set(
+    "Content-Type",
+    params.contentType ||
+      params.upstreamHeaders.get("content-type") ||
+      "application/octet-stream"
+  );
+
+  // Force inline for the reader; prevents browsers from treating it as a download.
+  headers.set(
+    "Content-Disposition",
+    `${params.disposition}; filename=\"${params.fileName}\"`
+  );
+
+  // Avoid caching presigned URLs.
+  headers.set("Cache-Control", "no-store");
+
+  // Forward headers that PDF.js relies on for range requests.
+  const passthrough = [
+    "accept-ranges",
+    "content-length",
+    "content-range",
+    "etag",
+    "last-modified",
+  ];
+  for (const key of passthrough) {
+    const v = params.upstreamHeaders.get(key);
+    if (v) headers.set(key, v);
+  }
+
+  return headers;
+}
+
+function parseParams(request: Request):
+  | {
+      upstreamUrl: URL;
+      contentType?: string;
+      fileName: string;
+      disposition: "inline" | "attachment";
+    }
+  | Response {
   const { searchParams } = new URL(request.url);
   const upstream = searchParams.get("url");
   if (!upstream) return badRequest("Missing url");
@@ -34,13 +82,53 @@ export async function GET(request: Request): Promise<Response> {
     ""
   );
   const disposition =
-    (searchParams.get("disposition") || "inline").toLowerCase() === "attachment"
+    (searchParams.get("disposition") || "inline").toLowerCase() ===
+    "attachment"
       ? "attachment"
       : "inline";
 
-  const upstreamRes = await fetch(upstreamUrl.toString(), {
+  return { upstreamUrl, contentType, fileName, disposition };
+}
+
+export async function HEAD(request: Request): Promise<Response> {
+  const parsed = parseParams(request);
+  if (parsed instanceof Response) return parsed;
+
+  const range = request.headers.get("range") || undefined;
+
+  const upstreamRes = await fetch(parsed.upstreamUrl.toString(), {
+    method: "HEAD",
     redirect: "follow",
     cache: "no-store",
+    headers: range ? { range } : undefined,
+  });
+
+  if (!upstreamRes.ok) {
+    const text = await upstreamRes.text().catch(() => "");
+    return badRequest(text || `Upstream failed (${upstreamRes.status})`, 502);
+  }
+
+  return new Response(null, {
+    status: upstreamRes.status,
+    headers: buildResponseHeaders({
+      contentType: parsed.contentType,
+      fileName: parsed.fileName,
+      disposition: parsed.disposition,
+      upstreamHeaders: upstreamRes.headers,
+    }),
+  });
+}
+
+export async function GET(request: Request): Promise<Response> {
+  const parsed = parseParams(request);
+  if (parsed instanceof Response) return parsed;
+
+  const range = request.headers.get("range") || undefined;
+
+  const upstreamRes = await fetch(parsed.upstreamUrl.toString(), {
+    redirect: "follow",
+    cache: "no-store",
+    headers: range ? { range } : undefined,
   });
 
   if (!upstreamRes.ok || !upstreamRes.body) {
@@ -48,27 +136,13 @@ export async function GET(request: Request): Promise<Response> {
     return badRequest(text || `Upstream failed (${upstreamRes.status})`, 502);
   }
 
-  const headers = new Headers();
-
-  // Prefer explicit contentType (from our API) to avoid download-triggering octet-stream.
-  headers.set(
-    "Content-Type",
-    contentType ||
-      upstreamRes.headers.get("content-type") ||
-      "application/octet-stream"
-  );
-
-  // Force inline for the reader; prevents browsers from treating it as a download.
-  headers.set(
-    "Content-Disposition",
-    `${disposition}; filename=\"${fileName}\"`
-  );
-
-  // Avoid caching presigned URLs.
-  headers.set("Cache-Control", "no-store");
-
   return new Response(upstreamRes.body, {
-    status: 200,
-    headers,
+    status: upstreamRes.status,
+    headers: buildResponseHeaders({
+      contentType: parsed.contentType,
+      fileName: parsed.fileName,
+      disposition: parsed.disposition,
+      upstreamHeaders: upstreamRes.headers,
+    }),
   });
 }
