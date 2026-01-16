@@ -75,8 +75,23 @@ export default function Home() {
       toast.info("Your download will start", "Preparing file");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Download failed";
-      setError(msg);
-      toast.error(msg, "Download failed");
+      // If the record is missing (e.g., after environment reset), refresh list and inform the user.
+      if (
+        typeof msg === "string" &&
+        msg.includes("404") &&
+        msg.includes("Book not found")
+      ) {
+        toast.error(
+          "Book not found. It may have been removed.",
+          "Download failed"
+        );
+        // Optimistically remove from UI while refreshing
+        setItems((prev) => prev.filter((b) => b.bookId !== bookId));
+        void refresh();
+      } else {
+        setError(msg);
+        toast.error(msg, "Download failed");
+      }
     }
   }
 

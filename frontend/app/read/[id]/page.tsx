@@ -30,8 +30,17 @@ export default function ReaderPage({ params }: { params: { id: string } }) {
         setUrl(url);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Failed to open";
-        setError(msg);
-        toast.error(msg, "Reader error");
+        if (
+          typeof msg === "string" &&
+          msg.includes("404") &&
+          msg.includes("Book not found")
+        ) {
+          setError("Book not found. It may have been removed.");
+          toast.error("Book not found", "Reader error");
+        } else {
+          setError(msg);
+          toast.error(msg, "Reader error");
+        }
       } finally {
         setLoading(false);
       }
@@ -103,6 +112,12 @@ export default function ReaderPage({ params }: { params: { id: string } }) {
               it locally.
             </div>
           )
+        ) : null}
+        {!loading && !item && error ? (
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-700">
+            Try going back and refreshing your library. If the book was deleted
+            or the environment was reset, please re-upload it.
+          </div>
         ) : null}
       </main>
     </div>
