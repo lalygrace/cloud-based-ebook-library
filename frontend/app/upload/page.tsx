@@ -15,6 +15,7 @@ export default function UploadPage() {
   const [genre, setGenre] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -42,7 +43,13 @@ export default function UploadPage() {
     }
 
     setBusy(true);
+    setProgress(5);
     try {
+      // simulate progress while encoding file (simple UX improvement)
+      const interval = setInterval(() => {
+        setProgress((p) => Math.min(90, p + 5));
+      }, 200);
+
       await uploadBook({
         title: title.trim(),
         author: author.trim(),
@@ -50,6 +57,8 @@ export default function UploadPage() {
         file,
         token: auth.token,
       });
+      clearInterval(interval);
+      setProgress(100);
       setSuccess("Upload complete");
       setTitle("");
       setAuthor("");
@@ -62,6 +71,7 @@ export default function UploadPage() {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setBusy(false);
+      setTimeout(() => setProgress(0), 800);
     }
   }
 
@@ -107,6 +117,14 @@ export default function UploadPage() {
         <form
           onSubmit={onSubmit}
           className="rounded-lg border border-zinc-200 bg-white p-6"
+          onDragOver={(e) => {
+            e.preventDefault();
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const f = e.dataTransfer.files?.[0];
+            if (f) setFile(f);
+          }}
         >
           <div className="grid gap-4">
             <div>
@@ -151,7 +169,9 @@ export default function UploadPage() {
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 required
               />
-              <p className="mt-1 text-xs text-zinc-500">Demo limit: 10MB</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Drag & drop supported. Demo limit: 10MB
+              </p>
             </div>
 
             <button
@@ -161,6 +181,14 @@ export default function UploadPage() {
             >
               {busy ? "Uploading…" : "Upload"}
             </button>
+            {busy || progress > 0 ? (
+              <div className="mt-2 h-2 w-full rounded bg-zinc-200">
+                <div
+                  className="h-2 rounded bg-zinc-900 transition-all"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            ) : null}
           </div>
         </form>
       </main>

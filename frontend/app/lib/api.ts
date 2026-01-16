@@ -95,14 +95,27 @@ export async function me(token: string): Promise<{ user: User }> {
   return (await res.json()) as { user: User };
 }
 
-export async function listBooks(token: string): Promise<BookItem[]> {
-  const res = await apiFetch("/books", { token });
+export async function listBooks(
+  token: string,
+  opts?: { q?: string; genre?: string; limit?: number; lastKey?: unknown }
+): Promise<{ items: BookItem[]; lastKey: unknown | null }> {
+  const params = new URLSearchParams();
+  if (opts?.q) params.set("q", opts.q);
+  if (opts?.genre) params.set("genre", opts.genre);
+  if (opts?.limit) params.set("limit", String(opts.limit));
+  if (opts?.lastKey) params.set("lastKey", JSON.stringify(opts.lastKey));
+
+  const path = params.toString() ? `/books?${params.toString()}` : "/books";
+  const res = await apiFetch(path, { token });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`List failed: ${res.status} ${text}`);
   }
-  const data = (await res.json()) as { items: BookItem[] };
-  return data.items;
+  const data = (await res.json()) as {
+    items: BookItem[];
+    lastKey?: unknown | null;
+  };
+  return { items: data.items, lastKey: data.lastKey ?? null };
 }
 
 export async function uploadBook(input: {

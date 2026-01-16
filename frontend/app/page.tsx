@@ -15,6 +15,9 @@ export default function Home() {
   const router = useRouter();
   const auth = useAuth();
   const [items, setItems] = useState<BookItem[]>([]);
+  const [lastKey, setLastKey] = useState<unknown | null>(null);
+  const [q, setQ] = useState("");
+  const [genre, setGenre] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,8 +29,13 @@ export default function Home() {
     setLoading(true);
     try {
       if (!auth.token) throw new Error("Not authenticated");
-      const data = await listBooks(auth.token);
-      setItems(data);
+      const { items, lastKey } = await listBooks(auth.token, {
+        q: q.trim() || undefined,
+        genre: genre.trim() || undefined,
+        limit: 20,
+      });
+      setItems(items);
+      setLastKey(lastKey ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -52,9 +60,36 @@ export default function Home() {
     try {
       if (!auth.token) throw new Error("Not authenticated");
       const { url } = await getBookDownload(bookId, auth.token);
+      // Try HEAD first for a friendlier error if the object is missing
+      try {
+        const res = await fetch(url, { method: "HEAD" });
+        if (!res.ok) throw new Error(`Download unavailable (${res.status})`);
+      } catch {
+        throw new Error("File not found in storage. Please re-upload.");
+      }
       window.location.href = url;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Download failed");
+    }
+  }
+
+  async function loadMore() {
+    if (loading || !lastKey) return;
+    setLoading(true);
+    try {
+      if (!auth.token) throw new Error("Not authenticated");
+      const { items: more, lastKey: nextKey } = await listBooks(auth.token, {
+        q: q.trim() || undefined,
+        genre: genre.trim() || undefined,
+        limit: 20,
+        lastKey,
+      });
+      setItems((prev) => [...prev, ...more]);
+      setLastKey(nextKey ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Load more failed");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -149,13 +184,27 @@ export default function Home() {
 
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold">Books</h2>
-          <button
-            className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm hover:bg-zinc-50"
-            onClick={() => void refresh()}
-            disabled={!hasApiBase || loading}
-          >
-            Refresh
-          </button>
+          <div className="flex gap-2">
+            <input
+              className="w-48 rounded-md border border-zinc-300 px-3 py-2 text-sm"
+              placeholder="Search title/author"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <input
+              className="w-40 rounded-md border border-zinc-300 px-3 py-2 text-sm"
+              placeholder="Genre"
+              value={genre}
+              onChange={(e) => setGenre(e.target.value)}
+            />
+            <button
+              className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm hover:bg-zinc-50"
+              onClick={() => void refresh()}
+              disabled={!hasApiBase || loading}
+            >
+              Apply
+            </button>
+          </div>
         </div>
 
         <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200 bg-white">
@@ -209,6 +258,17 @@ export default function Home() {
               ))}
             </ul>
           )}
+          {items.length > 0 ? (
+            <div className="flex justify-center border-t border-zinc-200 p-3">
+              <button
+                className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm hover:bg-zinc-50"
+                disabled={!lastKey || loading}
+                onClick={() => void loadMore()}
+              >
+                {lastKey ? (loading ? "Loading…" : "Load more") : "End"}
+              </button>
+            </div>
+          ) : null}
         </div>
       </main>
     </div>

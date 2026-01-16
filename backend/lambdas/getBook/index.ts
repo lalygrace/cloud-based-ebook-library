@@ -1,6 +1,6 @@
 import type { APIGatewayProxyHandler } from "aws-lambda";
 import { GetCommand } from "@aws-sdk/lib-dynamodb";
-import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { requireAuth } from "../../shared/auth.js";
 import { getHttpMethod, getRequestId } from "../../shared/apigw.js";
@@ -37,6 +37,21 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     const item = res.Item as BookItem | undefined;
     if (!item) return error(404, "Book not found");
+
+    // Verify object exists to avoid broken presigned URLs
+    try {
+      await s3Public.send(
+        new HeadObjectCommand({
+          Bucket: RESOURCE_CONFIG.bucketName,
+          Key: item.s3Key,
+        })
+      );
+    } catch (e) {
+      const code = (e as any)?.$metadata?.httpStatusCode;
+      if (code === 404)
+        return error(410, "File missing in storage. Please re-upload.");
+      throw e;
+    }
 
     const url = await getSignedUrl(
       s3Public,
