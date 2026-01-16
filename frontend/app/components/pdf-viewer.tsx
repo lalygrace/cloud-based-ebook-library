@@ -35,20 +35,36 @@ export default function PdfViewer({ url, title, downloadUrl }: Props) {
     setNumPages(null);
     setPage(1);
 
-    fetch(url, { cache: "no-store", signal: controller.signal })
-      .then(async (res) => {
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(text || `Failed to fetch PDF (${res.status})`);
-        }
-        return res.arrayBuffer();
-      })
-      .then((buf) => {
+    async function fetchPdf(u: string) {
+      const res = await fetch(u, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || `Failed to fetch PDF (${res.status})`);
+      }
+      const buf = await res.arrayBuffer();
+      return { buf, status: res.status };
+    }
+
+    fetchPdf(url)
+      .then(async ({ buf, status }) => {
         setPdfBytes(buf.byteLength);
         if (buf.byteLength === 0) {
-          throw new Error(
-            "The PDF response was empty (0 bytes). This usually means the upload failed or the stored file is missing/corrupted. Please re-upload the PDF."
-          );
+          // Some environments occasionally return an empty body (often reported as 204 elsewhere).
+          // Retry once with a cache-bust query.
+          const retryUrl = url.includes("?")
+            ? `${url}&cb=${Date.now()}`
+            : `${url}?cb=${Date.now()}`;
+          const retry = await fetchPdf(retryUrl);
+          setPdfBytes(retry.buf.byteLength);
+          if (retry.buf.byteLength === 0) {
+            throw new Error(
+              `The PDF response was empty (0 bytes). Please re-upload the PDF. (HTTP ${status})`
+            );
+          }
+          buf = retry.buf;
         }
         // Heuristic: PDFs smaller than ~1KB are almost certainly truncated/corrupt.
         // (A valid PDF typically contains at least header + xref + trailer.)

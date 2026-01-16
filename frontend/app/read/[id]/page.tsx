@@ -133,9 +133,21 @@ export default function ReaderPage() {
 
         {!loading && item && url ? (
           isPdf ? (
-            <PdfViewer url={viewUrl ?? url} title={item.originalFileName} />
+            viewUrl ? (
+              <PdfViewer url={viewUrl} title={item.originalFileName} />
+            ) : (
+              <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-700">
+                Preparing viewer…
+              </div>
+            )
           ) : isEpub ? (
-            <EpubViewer url={viewUrl ?? url} />
+            viewUrl ? (
+              <EpubViewer url={viewUrl} />
+            ) : (
+              <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-700">
+                Preparing viewer…
+              </div>
+            )
           ) : (
             <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-700">
               Preview not supported for this format. You can download and open
