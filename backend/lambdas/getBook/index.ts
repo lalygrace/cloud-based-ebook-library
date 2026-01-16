@@ -30,7 +30,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   const dispositionParam = (event.queryStringParameters?.disposition ?? "")
     .trim()
     .toLowerCase();
-  const disposition = dispositionParam === "inline" ? "inline" : "attachment";
+  const disposition: "inline" | "attachment" =
+    dispositionParam === "inline" ? "inline" : "attachment";
 
   try {
     const res = await ddb.send(
@@ -42,6 +43,16 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     const item = res.Item as BookItem | undefined;
     if (!item) return error(404, "Book not found");
+
+    // Some browsers (and some upload paths) won't render PDFs in an iframe
+    // unless Content-Type is application/pdf. If the uploaded file didn't
+    // carry a correct contentType, normalize it for the response.
+    const fileNameLower = (item.originalFileName ?? "").toLowerCase();
+    const responseContentType = (() => {
+      if (fileNameLower.endsWith(".pdf")) return "application/pdf";
+      if (fileNameLower.endsWith(".epub")) return "application/epub+zip";
+      return item.contentType;
+    })();
 
     // Verify object exists to avoid broken presigned URLs.
     // IMPORTANT: use the internal LocalStack endpoint for runtime calls.
@@ -61,16 +72,15 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       throw e;
     }
 
+    const safeName = item.originalFileName.replace(/["\r\n]/g, "");
+
     const url = await getSignedUrl(
       s3Public,
       new GetObjectCommand({
         Bucket: RESOURCE_CONFIG.bucketName,
         Key: item.s3Key,
-        ResponseContentType: item.contentType,
-        ResponseContentDisposition: `${disposition}; filename=\"${item.originalFileName.replace(
-          /\"/g,
-          ""
-        )}\"`,
+        ResponseContentType: responseContentType,
+        ResponseContentDisposition: `${disposition}; filename=\"${safeName}\"`,
       }),
       { expiresIn: PRESIGN_EXPIRES_SECONDS }
     );

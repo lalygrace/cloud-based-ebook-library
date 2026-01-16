@@ -14,6 +14,7 @@ export default function ReaderPage() {
   const params = useParams<{ id?: string }>();
   const [item, setItem] = useState<BookItem | null>(null);
   const [url, setUrl] = useState<string | null>(null);
+  const [viewUrl, setViewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const lastRequestedId = useRef<string | null>(null);
@@ -70,6 +71,24 @@ export default function ReaderPage() {
     void load();
   }, [auth.loading, auth.token, params, toast]);
 
+  useEffect(() => {
+    if (!item || !url) {
+      setViewUrl(null);
+      return;
+    }
+
+    const fileName = encodeURIComponent(item.originalFileName || "file");
+    const contentType = encodeURIComponent(item.contentType || "");
+    const proxied = `/api/blob?disposition=inline&contentType=${contentType}&fileName=${fileName}&url=${encodeURIComponent(
+      url
+    )}`;
+
+    // Always render via same-origin proxy to avoid:
+    // - CORS issues when fetching LocalStack URLs
+    // - attachment Content-Disposition forcing downloads in iframes
+    setViewUrl(proxied);
+  }, [item, url]);
+
   const isPdf = item?.contentType?.startsWith("application/pdf");
   const isEpub = item?.contentType?.includes("epub");
 
@@ -122,12 +141,12 @@ export default function ReaderPage() {
         {!loading && item && url ? (
           isPdf ? (
             <iframe
-              src={url}
+              src={viewUrl ? `${viewUrl}#toolbar=0&navpanes=0` : url}
               className="h-[80vh] w-full rounded border border-zinc-200 bg-white"
               title="PDF Reader"
             />
           ) : isEpub ? (
-            <EpubViewer url={url} />
+            <EpubViewer url={viewUrl ?? url} />
           ) : (
             <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-700">
               Preview not supported for this format. You can download and open

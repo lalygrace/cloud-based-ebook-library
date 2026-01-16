@@ -5,6 +5,10 @@ import ePub, { Book, Rendition } from "epubjs";
 
 type Props = { url: string };
 
+function isHttpUrl(s: string): boolean {
+  return s.startsWith("http://") || s.startsWith("https://");
+}
+
 export default function EpubViewer({ url }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +23,15 @@ export default function EpubViewer({ url }: Props) {
       setError(null);
       setLoading(true);
       try {
-        const res = await fetch(url);
+        const fetchUrl = isHttpUrl(url)
+          ? `/api/blob?disposition=inline&contentType=${encodeURIComponent(
+              "application/epub+zip"
+            )}&fileName=${encodeURIComponent("book.epub")}&url=${encodeURIComponent(
+              url
+            )}`
+          : url;
+
+        const res = await fetch(fetchUrl);
         if (!res.ok) throw new Error(`Failed to fetch EPUB (${res.status})`);
         const blob = await res.blob();
         objUrl = URL.createObjectURL(blob);
