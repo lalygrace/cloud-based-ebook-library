@@ -18,6 +18,11 @@ export default function ReaderPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     async function load() {
       if (auth.loading) return;
+      if (!params.id || params.id === "undefined") {
+        setError("Invalid book link. Try opening it from the library again.");
+        setLoading(false);
+        return;
+      }
       if (!auth.token) {
         setError("Please log in to read");
         return;

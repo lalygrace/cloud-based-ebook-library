@@ -304,8 +304,9 @@ export default function Home() {
                     {new Date(b.uploadedAt).toLocaleString()}
                   </p>
                   <div className="mt-3 flex gap-2">
-                    {b.contentType?.startsWith("application/pdf") ||
-                    b.contentType?.includes("epub") ? (
+                    {b.bookId &&
+                    (b.contentType?.startsWith("application/pdf") ||
+                      b.contentType?.includes("epub")) ? (
                       <Link
                         href={`/read/${encodeURIComponent(b.bookId)}`}
                         className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs hover:bg-zinc-50 text-center"
@@ -315,7 +316,7 @@ export default function Home() {
                     ) : null}
                     <button
                       className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs hover:bg-zinc-50"
-                      onClick={() => void onDownload(b.bookId)}
+                      onClick={() => b.bookId && void onDownload(b.bookId)}
                     >
                       Download
                     </button>
