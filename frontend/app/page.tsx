@@ -64,13 +64,6 @@ export default function Home() {
     try {
       if (!auth.token) throw new Error("Not authenticated");
       const { url } = await getBookDownload(bookId, auth.token);
-      // Try HEAD first for a friendlier error if the object is missing
-      try {
-        const res = await fetch(url, { method: "HEAD" });
-        if (!res.ok) throw new Error(`Download unavailable (${res.status})`);
-      } catch {
-        throw new Error("File not found in storage. Please re-upload.");
-      }
       window.location.href = url;
       toast.info("Your download will start", "Preparing file");
     } catch (e) {
@@ -88,6 +81,15 @@ export default function Home() {
         // Optimistically remove from UI while refreshing
         setItems((prev) => prev.filter((b) => b.bookId !== bookId));
         void refresh();
+      } else if (
+        typeof msg === "string" &&
+        msg.includes("410") &&
+        msg.toLowerCase().includes("re-upload")
+      ) {
+        toast.error(
+          "File not found in storage. This can happen after restarting LocalStack. Please re-upload the book.",
+          "Download failed"
+        );
       } else {
         setError(msg);
         toast.error(msg, "Download failed");

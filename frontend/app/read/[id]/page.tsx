@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "../../lib/auth-context";
 import { useToast } from "../../lib/toast-context";
-import { getBookDownload, type BookItem } from "../../lib/api";
+import { getBook, type BookItem } from "../../lib/api";
 import EpubViewer from "../../components/epub-viewer";
 
 export default function ReaderPage() {
@@ -36,7 +36,9 @@ export default function ReaderPage() {
       setError(null);
       setLoading(true);
       try {
-        const { item, url } = await getBookDownload(bookId, auth.token);
+        const { item, url } = await getBook(bookId, auth.token, {
+          disposition: "inline",
+        });
         setItem(item);
         setUrl(url);
       } catch (e) {
@@ -48,6 +50,15 @@ export default function ReaderPage() {
         ) {
           setError("Book not found. It may have been removed.");
           toast.error("Book not found", "Reader error");
+        } else if (
+          typeof msg === "string" &&
+          msg.includes("410") &&
+          msg.toLowerCase().includes("re-upload")
+        ) {
+          setError(
+            "File not found in storage. This can happen after restarting LocalStack. Please re-upload the book."
+          );
+          toast.error("File missing in storage", "Reader error");
         } else {
           setError(msg);
           toast.error(msg, "Reader error");

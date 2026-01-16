@@ -154,7 +154,22 @@ export async function getBookDownload(
   bookId: string,
   token: string
 ): Promise<{ item: BookItem; url: string }> {
-  const res = await apiFetch(`/books/${encodeURIComponent(bookId)}`, { token });
+  return getBook(bookId, token, { disposition: "attachment" });
+}
+
+export async function getBook(
+  bookId: string,
+  token: string,
+  opts?: { disposition?: "inline" | "attachment" }
+): Promise<{ item: BookItem; url: string }> {
+  const params = new URLSearchParams();
+  if (opts?.disposition) params.set("disposition", opts.disposition);
+  const qs = params.toString();
+  const path = qs
+    ? `/books/${encodeURIComponent(bookId)}?${qs}`
+    : `/books/${encodeURIComponent(bookId)}`;
+
+  const res = await apiFetch(path, { token });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Get failed: ${res.status} ${text}`);

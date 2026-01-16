@@ -27,6 +27,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   const bookId = event.pathParameters?.bookId;
   if (!bookId) return error(400, "Missing bookId");
 
+  const dispositionParam = (event.queryStringParameters?.disposition ?? "")
+    .trim()
+    .toLowerCase();
+  const disposition = dispositionParam === "inline" ? "inline" : "attachment";
+
   try {
     const res = await ddb.send(
       new GetCommand({
@@ -62,7 +67,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         Bucket: RESOURCE_CONFIG.bucketName,
         Key: item.s3Key,
         ResponseContentType: item.contentType,
-        ResponseContentDisposition: `attachment; filename=\"${item.originalFileName.replace(
+        ResponseContentDisposition: `${disposition}; filename=\"${item.originalFileName.replace(
           /\"/g,
           ""
         )}\"`,
