@@ -34,8 +34,7 @@ export async function GET(request: Request): Promise<Response> {
     ""
   );
   const disposition =
-    (searchParams.get("disposition") || "inline").toLowerCase() ===
-    "attachment"
+    (searchParams.get("disposition") || "inline").toLowerCase() === "attachment"
       ? "attachment"
       : "inline";
 
@@ -54,11 +53,16 @@ export async function GET(request: Request): Promise<Response> {
   // Prefer explicit contentType (from our API) to avoid download-triggering octet-stream.
   headers.set(
     "Content-Type",
-    contentType || upstreamRes.headers.get("content-type") || "application/octet-stream"
+    contentType ||
+      upstreamRes.headers.get("content-type") ||
+      "application/octet-stream"
   );
 
   // Force inline for the reader; prevents browsers from treating it as a download.
-  headers.set("Content-Disposition", `${disposition}; filename=\"${fileName}\"`);
+  headers.set(
+    "Content-Disposition",
+    `${disposition}; filename=\"${fileName}\"`
+  );
 
   // Avoid caching presigned URLs.
   headers.set("Cache-Control", "no-store");

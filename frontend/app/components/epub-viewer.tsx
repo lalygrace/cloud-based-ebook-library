@@ -26,9 +26,9 @@ export default function EpubViewer({ url }: Props) {
         const fetchUrl = isHttpUrl(url)
           ? `/api/blob?disposition=inline&contentType=${encodeURIComponent(
               "application/epub+zip"
-            )}&fileName=${encodeURIComponent("book.epub")}&url=${encodeURIComponent(
-              url
-            )}`
+            )}&fileName=${encodeURIComponent(
+              "book.epub"
+            )}&url=${encodeURIComponent(url)}`
           : url;
 
         const res = await fetch(fetchUrl);
