@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { useAuth } from "../lib/auth-context";
 import { useToast } from "../lib/toast-context";
 import { uploadBook } from "../lib/api";
+import { GENRES } from "../lib/genres";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -14,7 +15,7 @@ export default function UploadPage() {
   const toast = useToast();
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
-  const [genre, setGenre] = useState("");
+  const [genre, setGenre] = useState(GENRES[0]);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<number>(0);
@@ -22,7 +23,12 @@ export default function UploadPage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const canSubmit =
-    title.trim() && author.trim() && file && !busy && Boolean(auth.token);
+    title.trim() &&
+    author.trim() &&
+    genre.trim() &&
+    file &&
+    !busy &&
+    Boolean(auth.token);
 
   useEffect(() => {
     if (!auth.loading && !auth.token) router.replace("/login");
@@ -55,7 +61,7 @@ export default function UploadPage() {
       await uploadBook({
         title: title.trim(),
         author: author.trim(),
-        genre: genre.trim() || undefined,
+        genre: genre.trim(),
         file,
         token: auth.token,
       });
@@ -66,7 +72,7 @@ export default function UploadPage() {
       setTimeout(() => router.push("/"), 300);
       setTitle("");
       setAuthor("");
-      setGenre("");
+      setGenre(GENRES[0]);
       setFile(null);
 
       const input = document.getElementById("file") as HTMLInputElement | null;
@@ -156,13 +162,19 @@ export default function UploadPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium">Genre (optional)</label>
-              <input
-                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+              <label className="text-sm font-medium">Genre</label>
+              <select
+                className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
                 value={genre}
                 onChange={(e) => setGenre(e.target.value)}
-                placeholder="e.g. DevOps"
-              />
+                required
+              >
+                {GENRES.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
