@@ -16,8 +16,8 @@ export const ADMIN_EMAIL = (process.env.ADMIN_EMAIL ?? "admin@local.test")
 
 export function localstackEndpoint(): string {
   const host =
-    process.env.LOCALSTACK_HOSTNAME ??
     process.env.AWS_ENDPOINT_HOST ??
+    process.env.LOCALSTACK_HOSTNAME ??
     "localhost";
   const port = process.env.AWS_ENDPOINT_PORT ?? "4566";
   return `http://${host}:${port}`;
