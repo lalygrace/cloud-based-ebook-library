@@ -4,9 +4,9 @@ import React, {
   createContext,
   useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
+  useCallback,
 } from "react";
 
 type ToastType = "success" | "error" | "info";
@@ -47,34 +47,44 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const api = useMemo(
-    () => ({
-      add(toast: Omit<Toast, "id">) {
-        const id = uuid();
-        const t: Toast = {
-          id,
-          type: toast.type ?? "info",
-          durationMs: toast.durationMs ?? 3000,
-          ...toast,
-        };
-        setToasts((prev) => [t, ...prev].slice(0, 6));
-        timers.current[id] = setTimeout(() => {
-          setToasts((prev) => prev.filter((x) => x.id !== id));
-          delete timers.current[id];
-        }, t.durationMs);
-      },
-      success(message: string, title?: string) {
-        api.add({ message, title, type: "success" });
-      },
-      error(message: string, title?: string) {
-        api.add({ message, title, type: "error", durationMs: 5000 });
-      },
-      info(message: string, title?: string) {
-        api.add({ message, title, type: "info" });
-      },
-    }),
-    []
+  const add = useCallback((toast: Omit<Toast, "id">) => {
+    const id = uuid();
+    const t: Toast = {
+      id,
+      type: toast.type ?? "info",
+      durationMs: toast.durationMs ?? 3000,
+      ...toast,
+    };
+
+    setToasts((prev) => [t, ...prev].slice(0, 6));
+    timers.current[id] = setTimeout(() => {
+      setToasts((prev) => prev.filter((x) => x.id !== id));
+      delete timers.current[id];
+    }, t.durationMs);
+  }, []);
+
+  const success = useCallback(
+    (message: string, title?: string) => {
+      add({ message, title, type: "success" });
+    },
+    [add]
   );
+
+  const error = useCallback(
+    (message: string, title?: string) => {
+      add({ message, title, type: "error", durationMs: 5000 });
+    },
+    [add]
+  );
+
+  const info = useCallback(
+    (message: string, title?: string) => {
+      add({ message, title, type: "info" });
+    },
+    [add]
+  );
+
+  const api = { add, success, error, info };
 
   return (
     <ToastContext.Provider value={api}>

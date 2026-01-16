@@ -7,6 +7,7 @@ import { useAuth } from "../../lib/auth-context";
 import { useToast } from "../../lib/toast-context";
 import { getBook, type BookItem } from "../../lib/api";
 import EpubViewer from "../../components/epub-viewer";
+import PdfViewer from "../../components/pdf-viewer";
 
 export default function ReaderPage() {
   const auth = useAuth();
@@ -69,7 +70,7 @@ export default function ReaderPage() {
       }
     }
     void load();
-  }, [auth.loading, auth.token, params, toast]);
+  }, [auth.loading, auth.token, params, toast, url]);
 
   useEffect(() => {
     if (!item || !url) {
@@ -93,13 +94,15 @@ export default function ReaderPage() {
   const isEpub = item?.contentType?.includes("epub");
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
-      <header className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight">Reader</h1>
+    <div className="min-h-screen bg-linear-to-b from-zinc-50 to-white text-zinc-900">
+      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/80 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-semibold tracking-tight">
+              Reader
+            </h1>
             {item ? (
-              <p className="text-sm text-zinc-600">
+              <p className="truncate text-sm text-zinc-600">
                 {item.title} · {item.author}
               </p>
             ) : null}
@@ -116,16 +119,16 @@ export default function ReaderPage() {
                 href={url}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+                className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm hover:bg-zinc-50"
               >
-                Open in new tab
+                Open original
               </a>
             ) : null}
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-6">
+      <main className="mx-auto max-w-6xl px-4 py-6">
         {error ? (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
             {error}
@@ -140,10 +143,12 @@ export default function ReaderPage() {
 
         {!loading && item && url ? (
           isPdf ? (
-            <iframe
-              src={viewUrl ? `${viewUrl}#toolbar=0&navpanes=0` : url}
-              className="h-[80vh] w-full rounded border border-zinc-200 bg-white"
-              title="PDF Reader"
+            <PdfViewer
+              url={viewUrl ?? url}
+              title={item.originalFileName}
+              downloadUrl={`/api/proxy/books/${encodeURIComponent(
+                item.bookId
+              )}?disposition=attachment`}
             />
           ) : isEpub ? (
             <EpubViewer url={viewUrl ?? url} />

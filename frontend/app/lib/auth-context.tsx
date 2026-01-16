@@ -24,9 +24,9 @@ export function AuthProvider({
 }: {
   children: React.ReactNode;
 }): React.ReactNode {
-  const [token, setTokenState] = useState<string | null>(null);
+  const [token, setTokenState] = useState<string | null>(() => getToken());
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => Boolean(getToken()));
 
   async function refreshMe(activeToken: string) {
     const res = await me(activeToken);
@@ -34,21 +34,25 @@ export function AuthProvider({
   }
 
   useEffect(() => {
-    const existing = getToken();
-    if (!existing) {
-      setLoading(false);
-      return;
-    }
+    if (!token) return;
 
-    setTokenState(existing);
-    refreshMe(existing)
+    let cancelled = false;
+
+    refreshMe(token)
       .catch(() => {
         clearToken();
         setTokenState(null);
         setUser(null);
       })
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const value = useMemo<AuthState>(
     () => ({

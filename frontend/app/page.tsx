@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "./lib/auth-context";
 import {
   deleteBook,
@@ -45,8 +45,11 @@ export default function Home() {
     }
   }, [auth.token, genre, q]);
 
-  // We intentionally don't depend on `refresh` to avoid retriggering on each render.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const refreshRef = useRef(refresh);
+  useEffect(() => {
+    refreshRef.current = refresh;
+  }, [refresh]);
+
   useEffect(() => {
     if (!hasApiBase) {
       setLoading(false);
@@ -56,7 +59,7 @@ export default function Home() {
       setLoading(false);
       return;
     }
-    if (!auth.loading && auth.token) void refresh();
+    if (!auth.loading && auth.token) void refreshRef.current();
   }, [hasApiBase, auth.loading, auth.token]);
 
   async function onDownload(bookId: string) {
