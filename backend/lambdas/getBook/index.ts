@@ -4,7 +4,7 @@ import { GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { requireAuth } from "../../shared/auth.js";
 import { getHttpMethod, getRequestId } from "../../shared/apigw.js";
-import { ddb, RESOURCE_CONFIG, s3Public } from "../../shared/aws.js";
+import { ddb, RESOURCE_CONFIG, s3, s3Public } from "../../shared/aws.js";
 import { error, json } from "../../shared/http.js";
 import { PRESIGN_EXPIRES_SECONDS } from "../../shared/config.js";
 import type { BookItem } from "../../shared/types.js";
@@ -38,9 +38,12 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const item = res.Item as BookItem | undefined;
     if (!item) return error(404, "Book not found");
 
-    // Verify object exists to avoid broken presigned URLs
+    // Verify object exists to avoid broken presigned URLs.
+    // IMPORTANT: use the internal LocalStack endpoint for runtime calls.
+    // `s3Public` points at localhost so the presigned URL works in the browser,
+    // but Lambda containers cannot reach 127.0.0.1:4566 (it's themselves).
     try {
-      await s3Public.send(
+      await s3.send(
         new HeadObjectCommand({
           Bucket: RESOURCE_CONFIG.bucketName,
           Key: item.s3Key,

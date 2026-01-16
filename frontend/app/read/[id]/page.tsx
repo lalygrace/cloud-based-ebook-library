@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "../../lib/auth-context";
 import { useToast } from "../../lib/toast-context";
@@ -16,6 +16,7 @@ export default function ReaderPage() {
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastRequestedId = useRef<string | null>(null);
 
   useEffect(() => {
     const bookId = Array.isArray(params?.id) ? params?.id[0] : params?.id;
@@ -30,6 +31,8 @@ export default function ReaderPage() {
         setError("Please log in to read");
         return;
       }
+      if (lastRequestedId.current === bookId && url) return;
+      lastRequestedId.current = bookId;
       setError(null);
       setLoading(true);
       try {
